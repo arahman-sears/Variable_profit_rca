@@ -24,7 +24,7 @@ def escape_and_highlight(text,high=False):
     text = re.sub(r'(\d+)', r'<span style="color:red;">\1</span>', text)  # Highlight numbers in red
     return text
 
-def apply_custom_font(text):
+def apply_custom_font(text, width="700px"):
     """Wrap text in a div with custom CSS styling for consistency."""
     return f"""
     <div style="
@@ -36,70 +36,45 @@ def apply_custom_font(text):
         padding: 10px;
         border-radius: 5px;
         border: 1px solid #ddd;
+        width: {width};
+        display: inline-block;
     ">
         {text}
     </div>
     """
 
 def display_node(node, history):
+    # Display the current node's information
     current_node_text = escape_and_highlight(node.value['node'],True)
     current_node_text = apply_custom_font(current_node_text)
-    st.markdown(f"**Current Breakdown:** {current_node_text}", unsafe_allow_html=True)
+    st.markdown(f"**Current State:** {current_node_text}", unsafe_allow_html=True)
 
     if node.next_nodes:
-        next_node_values = [escape_and_highlight(child.value['value']) for child in node.next_nodes]
+        # Display each next node's value with proper formatting
+        for i, child in enumerate(node.next_nodes):
+            child_text = escape_and_highlight(child.value['value'])
+            child_text = apply_custom_font(child_text)
+            st.markdown(f"{i + 1}. {child_text}", unsafe_allow_html=True)
         
-        # CSS styling for radio buttons
-        st.markdown("""
-            <style>
-            .custom-radio input[type="radio"] {
-                display: none;
-            }
-            .custom-radio input[type="radio"] + label {
-                font-family: 'Arial', sans-serif;
-                font-size: 16px;
-                padding: 8px 12px;
-                margin-bottom: 5px;
-                display: inline-block;
-                cursor: pointer;
-                border-radius: 5px;
-                border: 1px solid #ddd;
-                background-color: #f9f9f9;
-                transition: all 0.2s;
-            }
-            .custom-radio input[type="radio"]:checked + label {
-                background-color: #0366d6;
-                color: white;
-                border-color: #0366d6;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+        # Use st.radio to select the index of the next node
+        selected_option = st.radio(
+            #st.markdown("Listed are breakdown within the current state, choose an option to further break down:", unsafe_allow_html=True)
+            "Listed are breakdown within the current state, choose an option to further break down:",
+            options=range(len(node.next_nodes)),
+            format_func=lambda i: f"Option {i + 1}"
+        )
 
-        st.markdown("**Choose an option to further break down:**")
-        
-        # Custom radio button implementation
-        for i, value in enumerate(next_node_values):
-            st.markdown(f"""
-                <div class="custom-radio">
-                    <input type="radio" id="option{i}" name="radio" value="{i}">
-                    <label for="option{i}">{value}</label>
-                </div>
-            """, unsafe_allow_html=True)
-
-        selected_option = st.session_state.get("selected_option", None)
         if st.button("Drill down"):
-            selected_option = st.session_state.get("selected_option", 0)
             selected_node = node.next_nodes[selected_option]
             history.append(selected_node)
             st.experimental_rerun()
-
     else:
         end_report_text = escape_and_highlight(node.value['value'],True)
         end_report_text = apply_custom_font(end_report_text)
         st.markdown(f"**End Report:** {end_report_text}", unsafe_allow_html=True)
 
     if history and len(history) > 1:
-        if st.button("Back to parent node"):
+        if st.button("Go Back"):
             history.pop()
             st.experimental_rerun()
 
