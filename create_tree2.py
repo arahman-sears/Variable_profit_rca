@@ -5,8 +5,55 @@ import pickle
 import os
 import copy
 #load_dotenv()
+def get_info(fil_ac_dic,tod_mean,cp_dic,vp_cat,dt,tup):
+    res={}
+    pref_mn='MEAN_DAILY_AVG_'
+    pref_std='STD_DAILY_AVG_'
+    lst=[f'{v} : {cp_dic[v]}' for v in cp_dic if cp_dic[v]!='ALL']
+    x=round(tod_mean['VARIABLE_PROFIT'],2)
+    y=round(fil_ac_dic[pref_mn+'VARIABLE_PROFIT'],2)
+    ret_str=f"For date: {dt}, the variable profit is $ {x}, which is $ {round(y-x,2)} below mean daily average of $ {y} with standard deviation $ {round(fil_ac_dic[pref_std+'VARIABLE_PROFIT'],2)} for breakdown of  " +" and ".join(lst) + " , making it an outlier"
+    res['value']=ret_str
+    res['node']= ' and '.join(lst)
+    den=abs(fil_ac_dic[pref_std+'VARIABLE_PROFIT'])
+    if den==0:
+        res['z-score']=0
+    else:
+        res['z-score']=abs(fil_ac_dic[pref_mn+'VARIABLE_PROFIT']-tod_mean['VARIABLE_PROFIT'])/den
+    vc=0
+    vd=0
+    vr=0
+    for cat in vp_cat:
+        for val in vp_cat[cat]:
+            for v in vp_cat[cat][val]:
+                delta=tod_mean[v]-fil_ac_dic[pref_mn+v]
+                if val=='Revenue':
+                    vr+=tod_mean[v]
+                elif val=='Expense':
+                    vc+=tod_mean[v]
+                else:
+                    vd+=tod_mean[v]
+                mn=fil_ac_dic[pref_mn+v]
+                std=fil_ac_dic[pref_std+v]
+                vp_cat[cat][val][v]['delta']=round(delta,3)
+                vp_cat[cat][val][v]['mean']=round(mn,3)
+                vp_cat[cat][val][v]['std']=round(std,3)
+    res['Variable_Cost']=vc
+    res['Variable_Revenue']=vr
+    res['Variable_Discount']=vd
+    res['COMPLETES_INFO']={"Day's Complete within breakdown":tod_mean["COMPLETES"],"Mean Daily Average within breakdown":round(fil_ac_dic[pref_mn+'COMPLETES'],2),"std":round(fil_ac_dic[pref_std+'COMPLETES'],2)}
+    res['water_fall']=vp_cat
+    res['tup']=tup
+    if res['COMPLETES_INFO']["Day's Complete within breakdown"]>2 and abs(res['COMPLETES_INFO']['std'])>0 and abs(res['COMPLETES_INFO']["Day's Complete within breakdown"]-res['COMPLETES_INFO']["Mean Daily Average within breakdown"])<=abs(res['COMPLETES_INFO']['std']):
+        return res
+    else:
+        return {}
+  
+
+
 
 cali=2
+
 class Node:
     def __init__(self, value=None, next_nodes=None):
         self.value = value  # Store the value as a dictionary
@@ -33,62 +80,62 @@ def create_snowflake_connection(user, password, account, warehouse, database, sc
     return conn
 def get_faulty_profit_last_30(conn):
     query = """
-    with ftbl as(
- SELECT * ,  
+   with ftbl as(
+ SELECT * ,
     row_number() over(partition by  (base.svc_un_no ||'-'||base.so_no) order by base.SO_STS_DT desc) as rn,
     Case when left(base.so_sts_desc,2) in ('CO','ED') then 1
     else 0
     end as completes
     FROM FINANCE_ANALYTICS.ADHOC_TBLS.IHR_UNIT_ECONOMICS AS base
-    WHERE  completes =1 
+    WHERE  completes =1
 
 ),
 ft as (select *
 from ftbl
 where rn=1),
 gr_stats as (
- SELECT 
+ SELECT
          SO_STS_DT,
         AVG(variable_profit) AS dt_avg_pr
     FROM ft
     WHERE SO_STS_DT >= DATEADD(year, -1, CURRENT_DATE)  and SO_STS_DT < CURRENT_DATE()
         AND completes=1
     group by SO_STS_DT
-    order by SO_STS_DT 
+    order by SO_STS_DT
     desc
 ),
 stats AS (
-    SELECT 
-        AVG(dt_avg_pr) AS mean_profit, 
+    SELECT
+        AVG(dt_avg_pr) AS mean_profit,
         STDDEV(dt_avg_pr) AS stddev_profit
     from gr_stats
 ),
 
 -- Step 2: Find records within the last 4 days where variable_profit is less than 2 stddev below the mean
 recent_data AS (
-    SELECT 
-         
+    SELECT
+
         SO_STS_DT,
         dt_avg_pr
     FROM gr_stats
-    WHERE SO_STS_DT >= DATEADD(day, -30, CURRENT_DATE)  and SO_STS_DT <CURRENT_DATE()
-       
+    WHERE SO_STS_DT >= DATEADD(day, -30, CURRENT_DATE)  and SO_STS_DT <CURRENT_DATE()-1
+
 )
 -- select * from gr_stats
 
 -- Step 3: Combine the two results to filter based on the condition
-SELECT 
+SELECT
     r.SO_STS_DT,
     r.dt_avg_pr,
     s.mean_profit,
     s.stddev_profit
-FROM 
-    recent_data r, 
+FROM
+    recent_data r,
     stats s
-WHERE 
+WHERE
     r.dt_avg_pr <(s.mean_profit - 2 * s.stddev_profit)
-    
-order by DT_AVG_PR desc
+
+order by SO_STS_DT desc
     """
 
     df = pd.read_sql(query, conn)
@@ -168,9 +215,8 @@ def filter_ac(df,dic):
     return df.to_dict(orient='records')
 def filter_and_average(df: pd.DataFrame, filter_dict: dict) -> dict:
     
-    
     # Filter the DataFrame based on the filter_dict, ignoring columns where value is 'ALL'
-    #print(df.shape)
+    #print('prev',df.shape)
     for col, value in filter_dict.items():
         if value != 'ALL':
             #print(col,value)
@@ -180,17 +226,20 @@ def filter_and_average(df: pd.DataFrame, filter_dict: dict) -> dict:
     # Drop the columns used for filtering where value is not 'ALL'
     columns_to_drop = [col for col, value in filter_dict.items() if value != 'ALL']
     df_filtered = df.drop(columns=columns_to_drop)
+    ln=len(df_filtered)
     #print(df_filtered.shape)
 
     # Drop non-numeric columns (int, float, etc.)
     df_filtered = df_filtered.select_dtypes(include=['int', 'float', 'number'])
     #print(df_filtered.shape)
     df_filtered = df_filtered.fillna(0)
+    #print('after',df_filtered.shape)
     # Check if the DataFrame is empty after filtering
     if df_filtered.empty:
         return {}
 
     mean_values = df_filtered.mean().to_dict()
+    mean_values['COMPLETES']=ln
 
     return mean_values
 
@@ -288,35 +337,7 @@ def chek_varprofit(fil_ac_dic,tod_mean,cp_dic):
         return dvp<mvp-cali*svp
     return False
 
-def get_info(fil_ac_dic,tod_mean,cp_dic,vp_cat):
-  #print(cali)
-  res={}
-  pref_mn='MEAN_DAILY_AVG_'
-  pref_std='STD_DAILY_AVG_'
-  lst=[f'{v} : {cp_dic[v]}' for v in cp_dic if cp_dic[v]!='ALL']
-  x=round(tod_mean['VARIABLE_PROFIT'],2)
-  y=round(fil_ac_dic[pref_mn+'VARIABLE_PROFIT'],2)
-  ret_str=f"The variable profit is $ {x}, which is $ {y-x} below daily average of $ {y} with standard deviation $ {round(fil_ac_dic[pref_std+'VARIABLE_PROFIT'],2)} for breakdown of  " +" and ".join(lst)+" ,making this group an outlier. "
-  res['value']=ret_str
-  res['node']= ' and '.join(lst)
-  den=abs(fil_ac_dic[pref_std+'VARIABLE_PROFIT'])
-  if den==0:
-    res['z-score']=0
-  else:
-    res['z-score']=abs(fil_ac_dic[pref_mn+'VARIABLE_PROFIT']-tod_mean['VARIABLE_PROFIT'])/den
-  for cat in vp_cat:
-    for val in vp_cat[cat]:
-      for v in vp_cat[cat][val]:
-        print(v)
-        delta=tod_mean[v]-fil_ac_dic[pref_mn+v]
-        mn=fil_ac_dic[pref_mn+v]
-        std=fil_ac_dic[pref_std+v]
-        vp_cat[cat][val][v]['delta']=round(delta,3)
-        vp_cat[cat][val][v]['mean']=round(mn,3)
-        vp_cat[cat][val][v]['std']=round(std,3)
-  res['water_fall']=vp_cat
 
-  return res
 
 def chec_enter(dic):
     for v in dic:
@@ -330,45 +351,46 @@ def chec_enter(dic):
 
     return True
 
-def rec(num,lst_key,dim_f,dic,st,df_ac,tod_df,pr_res,vp_cat):
-    nd=Node(value=pr_res)
-
+def rec(num, lst_key, dim_f, dic, st, df_ac, tod_df, pr_res, vp_cat, dt):
+    
+    nd = Node(value=pr_res)
     for i in range(len(lst_key)):
         if not check_nth_bit(num, i):
-            nnum=set_nth_bit(num, i)
+            nnum = set_nth_bit(num, i)
             for val in dim_f[lst_key[i]]:
-                cp_dic=dic.copy()
-                cp_dic[lst_key[i]]=val
+                cp_dic = dic.copy()
+                cp_dic[lst_key[i]] = val
                 if not chec_enter(cp_dic):
                     continue
-                tup=tuple(cp_dic.values())
-      
+                tup = tuple(cp_dic.values())
                 if tup not in st:
                     st.add(tup)
-                    tod_df_cp=tod_df.copy(True)
-    
-                    tod_mean=filter_and_average(tod_df_cp,cp_dic)
-                    if len(tod_mean.items())==0:
+                    tod_df_cp = tod_df.copy(True)
+                    # print(cp_dic)
+                    tod_mean = filter_and_average(tod_df_cp, cp_dic)
+                    if len(tod_mean.items()) == 0:
                         continue
-                    df_ac_cp=df_ac.copy(deep=True)
-                    fil_ac_dic=filter_ac(df_ac_cp,cp_dic)
-                    if len(fil_ac_dic)==0:
+                    df_ac_cp = df_ac.copy(deep=True)
+                    fil_ac_dic = filter_ac(df_ac_cp, cp_dic)
+                    if len(fil_ac_dic) == 0:
                         continue
 
                     del df_ac_cp
                     del tod_df_cp
 
-                    if chek_varprofit(fil_ac_dic[0],tod_mean,cp_dic):
-                        #print('vp',tod_mean['VARIABLE_PROFIT'],fil_ac_dic[0]['MEAN_DAILY_AVG_VARIABLE_PROFIT'],fil_ac_dic[0]['STD_DAILY_AVG_VARIABLE_PROFIT'],cp_dic)
-                        vp_cat_cp=copy.deepcopy(vp_cat)
-           
-                        res=get_info(fil_ac_dic[0],tod_mean,cp_dic,vp_cat_cp)
-                        if res['z-score']==0:
+                    if chek_varprofit(fil_ac_dic[0], tod_mean, cp_dic):
+                        vp_cat_cp = copy.deepcopy(vp_cat)
+                        res = get_info(fil_ac_dic[0], tod_mean, cp_dic, vp_cat_cp, dt,tup)
+                        if len(res) == 0 or res['z-score'] == 0:
                             continue
-                        nd.next_nodes.append(rec(nnum,lst_key,dim_f,cp_dic,st,df_ac,tod_df,res,vp_cat))
-    if len(nd.next_nodes)!=0:
+                        nd.next_nodes.append(rec(nnum, lst_key, dim_f, cp_dic, st, df_ac, tod_df, res, vp_cat, dt))
+    if len(nd.next_nodes) != 0:
         nd.sort_next_nodes_by_z_score()
-        nd.next_nodes=nd.next_nodes[:min(len(nd.next_nodes),5)]
+        for i in range(5,len(nd.next_nodes)):
+            if nd.next_nodes[i].value['tup'] in st:
+                st.remove(nd.next_nodes[i].value['tup'])
+                #print("y",tup)
+        nd.next_nodes = nd.next_nodes[:min(len(nd.next_nodes), 5)]
 
     return nd
 
@@ -423,12 +445,12 @@ def tree_gen():
     ]
     filtered_columns = filtered_columns+['VARIABLE_PROFIT']
     dim=[ 'CALL_TYPE','APPLIANCE', 'PLANNING_AREA_NAME', 'ATTEMPTS']
-    dim_dic={'HOME_SERVICES_SPECIALITY':'APPLIANCE', 'PLANNING_AREA_NAME':'PLANNING_AREA_NAME','CALL_TYPE': 'CALL_TYPE', 'N_ATP':'ATTEMPTS'}
+    dim_dic={'CALL_TYPE': 'CALL_TYPE','HOME_SERVICES_SPECIALITY':'APPLIANCE', 'PLANNING_AREA_NAME':'PLANNING_AREA_NAME', 'N_ATP':'ATTEMPTS'}
     faulty_dic=get_faulty_profit_last_30(conn)
     
-    dic={'PLANNING_AREA_NAME': 'ALL',
-        'CALL_TYPE': 'ALL',
+    dic={'CALL_TYPE': 'ALL',
          'APPLIANCE': 'ALL',
+         'PLANNING_AREA_NAME': 'ALL',
          'ATTEMPTS': 'ALL'}
     if  faulty_dic:
         result_df=join_and_select_given_date(conn, dim,dim_dic, filtered_columns, 'SO_STS_DT',faulty_dic['SO_STS_DT'])
@@ -439,7 +461,7 @@ def tree_gen():
         lst_key=[v for v in dim_f]
         #indx_dic={lst_key[i]:i for i in range(len(lst_key))}
         variable_profit_categories=ret_vp_cat()
-        res_nd=rec(num,lst_key,dim_f,dic,set(),df_ac,result_df,start_val,variable_profit_categories)
+        res_nd=rec(num,lst_key,dim_f,dic,set(),df_ac,result_df,start_val,variable_profit_categories,faulty_dic['SO_STS_DT'])
         return res_nd
     else:
         return None

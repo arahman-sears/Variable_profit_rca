@@ -6,6 +6,14 @@ import numpy as np
 def load_node(filename):
     with open(filename, 'rb') as file:
         return pickle.load(file)
+def format_value_with_dollar_sign(key, value):
+    """Format value with a dollar sign for cost, discount, and revenue-related keys."""
+    if key in ['Variable_Cost', 'Variable_Revenue', 'Variable_Discount']:
+        return f"${value:,.2f}"
+    if isinstance(value, dict):
+        formatted_dict = '<br>'.join([f"  - **{k}:** {format_value_with_dollar_sign(k, v)}" for k, v in value.items()])
+        return f"{{<br>{formatted_dict}<br>}}"
+    return value
 class Node:
     def __init__(self, value=None, next_nodes=None):
         self.value = value  # Store the value as a dictionary
@@ -130,6 +138,12 @@ def display_node(node, history):
             child_text = escape_and_highlight(child.value['value'])
             child_text = apply_custom_font(child_text)
             st.markdown(f"{i + 1}. {child_text}", unsafe_allow_html=True)
+            st.markdown("#### Additional Details")
+            for key, value in child.value.items():
+                if key not in ['node', 'value', 'water_fall','tup']:  # Skip the main and already displayed keys
+                    formatted_value = format_value_with_dollar_sign(key, value)
+                    st.markdown(f"- **{key}:** {formatted_value}", unsafe_allow_html=True)
+                    
             with st.expander(f"Expand to view chart {i + 1} and  see how different factors are impacting difference in the variable profit ", expanded=False):
                 st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
                 generate_waterfall_chart(child.value['water_fall'])
@@ -152,6 +166,12 @@ def display_node(node, history):
         end_report_text = escape_and_highlight(node.value['value'],True)
         end_report_text = apply_custom_font(end_report_text)
         st.markdown(f"**End Report:** {end_report_text}", unsafe_allow_html=True)
+        for key, value in node.value.items():
+            #print("in")
+            if key not in ['node', 'value', 'water_fall','tup']:  # Skip the main and already displayed keys
+                #print("in-again")
+                formatted_value = format_value_with_dollar_sign(key, value)
+                st.markdown(f"- **{key}:** {formatted_value}", unsafe_allow_html=True)
         with st.expander(f"Expand to view chart and see how different factors are impacting difference in the variable profit", expanded=False):
             st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
             generate_waterfall_chart(node.value['water_fall'])
