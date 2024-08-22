@@ -167,7 +167,7 @@ def display_node(node, history):
         end_report_text = apply_custom_font(end_report_text)
         st.markdown(f"**End Report:** {end_report_text}", unsafe_allow_html=True)
         for key, value in node.value.items():
-            #print("in")
+        
             if key not in ['node', 'value', 'water_fall','tup']:  # Skip the main and already displayed keys
                 formatted_value = format_value_with_dollar_sign(key, value)
                 st.markdown(f"- **{key}:** {formatted_value}", unsafe_allow_html=True)
