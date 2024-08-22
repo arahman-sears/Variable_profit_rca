@@ -169,7 +169,6 @@ def display_node(node, history):
         for key, value in node.value.items():
             #print("in")
             if key not in ['node', 'value', 'water_fall','tup']:  # Skip the main and already displayed keys
-                #print("in-again")
                 formatted_value = format_value_with_dollar_sign(key, value)
                 st.markdown(f"- **{key}:** {formatted_value}", unsafe_allow_html=True)
         with st.expander(f"Expand to view chart and see how different factors are impacting difference in the variable profit", expanded=False):
