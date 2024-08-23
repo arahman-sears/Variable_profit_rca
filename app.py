@@ -200,5 +200,5 @@ def main():
     display_node(current_node, st.session_state.history)
 
 if __name__ == "__main__":
-    st.title("Outlier report for Variable Profit for completes(ED, CO)")
+    st.title("Outlier report for variable profit for completes(ED, CO)")
     main()
