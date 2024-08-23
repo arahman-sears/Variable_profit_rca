@@ -52,6 +52,7 @@ def apply_custom_font(text, width="700px"):
         {text}
     </div>
     """
+@st.cache(suppress_st_warning=True)
 def generate_waterfall_chart(water_fall):
     
     labels = []
@@ -118,7 +119,7 @@ def generate_waterfall_chart(water_fall):
     ax.axhline(0, color='gray', linewidth=0.8)
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(labels, rotation=90,fontsize=18)
-    ax.set_ylabel('Delta values',fontsize=18)
+    ax.set_ylabel('Delta values ( w.r.t to the mean of each factor)',fontsize=18)
     ax.set_title('Waterfall Chart of Profit Impact by Category',fontsize=20)
 
     plt.tight_layout()

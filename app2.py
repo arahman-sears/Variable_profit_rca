@@ -3,6 +3,7 @@ import pickle
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+from functools import lru_cache
 def load_node(filename):
     with open(filename, 'rb') as file:
         return pickle.load(file)
@@ -52,6 +53,7 @@ def apply_custom_font(text, width="700px"):
         {text}
     </div>
     """
+@st.cache(suppress_st_warning=True)
 def generate_waterfall_chart(water_fall):
     
     labels = []
@@ -143,10 +145,12 @@ def display_node(node, history):
                 if key not in ['node', 'value', 'water_fall','tup']:  # Skip the main and already displayed keys
                     formatted_value = format_value_with_dollar_sign(key, value)
                     st.markdown(f"- **{key}:** {formatted_value}", unsafe_allow_html=True)
-                    
+            #if st.button(f"Expand to view chart {i+1} and  see how different factors are impacting difference in the variable profit", key=f"button_{i}"):
+                     
             with st.expander(f"Expand to view chart {i + 1} and  see how different factors are impacting difference in the variable profit ", expanded=False):
                 st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
                 generate_waterfall_chart(child.value['water_fall'])
+            
                 st.markdown('</div>', unsafe_allow_html=True)
         
         
@@ -172,9 +176,11 @@ def display_node(node, history):
                 #print("in-again")
                 formatted_value = format_value_with_dollar_sign(key, value)
                 st.markdown(f"- **{key}:** {formatted_value}", unsafe_allow_html=True)
+        #if st.button(f"Expand to view chart and  see how different factors are impacting difference in the variable profit", key=f"button_"):
         with st.expander(f"Expand to view chart and see how different factors are impacting difference in the variable profit", expanded=False):
             st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
             generate_waterfall_chart(node.value['water_fall'])
+    
             st.markdown('</div>', unsafe_allow_html=True)
 
     if history and len(history) > 1:

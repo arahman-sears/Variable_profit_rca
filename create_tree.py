@@ -98,7 +98,7 @@ gr_stats as (
          SO_STS_DT,
         AVG(variable_profit) AS dt_avg_pr
     FROM ft
-    WHERE SO_STS_DT >= DATEADD(year, -1, CURRENT_DATE)  and SO_STS_DT < CURRENT_DATE()
+    WHERE SO_STS_DT >= DATEADD(year, -1, CURRENT_DATE)  and SO_STS_DT < CURRENT_DATE()-1
         AND completes=1
     group by SO_STS_DT
     order by SO_STS_DT
