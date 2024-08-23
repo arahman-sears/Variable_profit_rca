@@ -3,9 +3,16 @@ import pickle
 import re
 import matplotlib.pyplot as plt
 import numpy as np
-def load_node(filename):
-    with open(filename, 'rb') as file:
-        return pickle.load(file)
+import os
+def load_node():
+    
+    # Find the first file that starts with "tree" and ends with ".pkl"
+    for file in os.listdir():
+        if file.startswith("tree") and file.endswith(".pkl"):
+            with open(file, 'rb') as f:
+                #print(f"Loading node from: {file}")
+                return pickle.load(f)
+    raise FileNotFoundError("No file starting with 'tree' found.")
 def format_value_with_dollar_sign(key, value):
     """Format value with a dollar sign for cost, discount, and revenue-related keys."""
     if key in ['Variable_Cost', 'Variable_Revenue', 'Variable_Discount']:
@@ -52,7 +59,7 @@ def apply_custom_font(text, width="700px"):
         {text}
     </div>
     """
-@st.cache(suppress_st_warning=True)
+#@st.cache(suppress_st_warning=True)
 def generate_waterfall_chart(water_fall):
     
     labels = []
@@ -184,7 +191,7 @@ def display_node(node, history):
 
 def main():
     # Load the tree structure from a pickle file
-    root = load_node('tree.pkl')
+    root = load_node()
     if 'history' not in st.session_state:
         st.session_state.history = [root]
 

@@ -408,11 +408,34 @@ def starting_node(dic):
     return res
 
 def save_node(node, filename):
-    with open(filename, 'wb') as file:
+    # Get the current date and time
+    current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Create the new filename with date and time
+    new_filename = f"tree_{current_time}.pkl"
+    
+    # Check if any .pkl file with "tree" in the name exists, and delete it
+    for file in os.listdir():
+        if file.endswith(".pkl") and "tree" in file:
+            os.remove(file)
+            print(f"Deleted existing file: {file}")
+    
+    # Save the node with the new filename
+    with open(new_filename, 'wb') as file:
         pickle.dump(node, file)
-def load_node(filename):
-    with open(filename, 'rb') as file:
-        return pickle.load(file)
+    print(f"Node saved as: {new_filename}")
+# def load_node(filename):
+#     with open(filename, 'rb') as file:
+#         return pickle.load(file)
+def load_node():
+    
+    # Find the first file that starts with "tree" and ends with ".pkl"
+    for file in os.listdir():
+        if file.startswith("tree") and file.endswith(".pkl"):
+            with open(file, 'rb') as f:
+                print(f"Loading node from: {file}")
+                return pickle.load(f)
+    raise FileNotFoundError("No file starting with 'tree' found.")
 def tree_gen():
     conn=create_snowflake_connection(os.getenv('SNOWFLAKE_USER'), os.getenv('SNOWFLAKE_PASSWORD'), 'sears_hs_prod.us-east-1', 'HS_SUPCH_ANALYTICS_WH', 'IT_ANALYTICS', 'SHS_PRODUCT')
     filtered_columns= [
@@ -467,7 +490,7 @@ def tree_gen():
         return None
 res_nd=tree_gen()
 save_node(res_nd, 'tree.pkl')
-nn=load_node('tree.pkl')
+nn=load_node()
 print(res_nd.next_nodes[-1].value)
 print(nn.next_nodes[-1].value)
     
