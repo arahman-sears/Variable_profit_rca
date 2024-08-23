@@ -126,7 +126,7 @@ def generate_waterfall_chart(water_fall):
     ax.axhline(0, color='gray', linewidth=0.8)
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(labels, rotation=90,fontsize=18)
-    ax.set_ylabel('Delta values ( w.r.t to the mean of each factor)',fontsize=18)
+    ax.set_ylabel('Delta values( w.r.t to the mean of each factor)',fontsize=18)
     ax.set_title('Waterfall Chart of Profit Impact by Category',fontsize=20)
 
     plt.tight_layout()
@@ -136,7 +136,7 @@ def display_node(node, history):
     current_node_text = escape_and_highlight(node.value['node'],True)
     current_node_text = apply_custom_font(current_node_text)
     if not node.value['value']:
-        st.markdown(f"**Overall report  on  the  variable profit:** {current_node_text}", unsafe_allow_html=True)
+        st.markdown(f"**Overall report on the variable profit:** {current_node_text}", unsafe_allow_html=True)
     else:
         st.markdown(f"**Current Breakdown:** {current_node_text}", unsafe_allow_html=True)
 
@@ -200,5 +200,5 @@ def main():
     display_node(current_node, st.session_state.history)
 
 if __name__ == "__main__":
-    st.title("Outlier report for Variable Profit")
+    st.title("Outlier report for Variable Profit for completes(ED, CO)")
     main()
