@@ -170,7 +170,10 @@ def display_node(node, history):
             selected_node = node.next_nodes[selected_option]
             history.append(selected_node)
             st.experimental_rerun()
+    elif not node.value['value']:
+        pass
     else:
+        
         end_report_text = escape_and_highlight(node.value['value'],True)
         end_report_text = apply_custom_font(end_report_text)
         st.markdown(f"**End Report:** {end_report_text}", unsafe_allow_html=True)

@@ -98,7 +98,7 @@ gr_stats as (
          SO_STS_DT,
         AVG(variable_profit) AS dt_avg_pr
     FROM ft
-    WHERE SO_STS_DT >= DATEADD(year, -1, CURRENT_DATE)  and SO_STS_DT < CURRENT_DATE()-1
+    WHERE SO_STS_DT >= DATEADD(year, -1, CURRENT_DATE)  and SO_STS_DT < CURRENT_DATE()-4
         AND completes=1
     group by SO_STS_DT
     order by SO_STS_DT
@@ -118,7 +118,7 @@ recent_data AS (
         SO_STS_DT,
         dt_avg_pr
     FROM gr_stats
-    WHERE SO_STS_DT >= DATEADD(day, -30, CURRENT_DATE)  and SO_STS_DT <CURRENT_DATE()-1
+    WHERE SO_STS_DT >= DATEADD(day, -60, CURRENT_DATE)  and SO_STS_DT <CURRENT_DATE()-4
 
 )
 -- select * from gr_stats
@@ -476,6 +476,7 @@ def tree_gen():
          'PLANNING_AREA_NAME': 'ALL',
          'ATTEMPTS': 'ALL'}
     if  faulty_dic:
+        print(faulty_dic)
         result_df=join_and_select_given_date(conn, dim,dim_dic, filtered_columns, 'SO_STS_DT',faulty_dic['SO_STS_DT'])
         dim_f={v:result_df[v].unique() for v in dim}
         df_ac=get_all_comb_table(conn)
@@ -491,6 +492,6 @@ def tree_gen():
 res_nd=tree_gen()
 save_node(res_nd, 'tree.pkl')
 nn=load_node()
-print(res_nd.next_nodes[-1].value)
-print(nn.next_nodes[-1].value)
+# print(res_nd.next_nodes[-1].value)
+# print(nn.next_nodes[-1].value)
     
